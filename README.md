@@ -1,7 +1,7 @@
 ````markdown
 # TCMLLMComparison
 
-This repository contains the code, processed evaluation summaries, and result tables for the manuscript:
+This repository contains the code, configuration files, processed evaluation summaries, and result tables for the manuscript:
 
 **A benchmark and leakage-controlled evaluation of LoRA fine-tuning for traditional Chinese medicine language models**
 
@@ -26,6 +26,8 @@ The JSON task files used in this study were derived from publicly released resou
 - Source project: https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B
 
 We did not construct a new clinical database from hospital records. Instead, we selected task-specific JSON files from the publicly released integrated resources and used them for controlled LoRA fine-tuning and evaluation.
+
+Users should check and follow the license and usage terms of the original SmartSage-ZYLLM-32B / 智医灵枢 resources before using, redistributing, or modifying any raw or derived data files.
 
 ## Task-composition experiment
 
@@ -127,6 +129,11 @@ TCMLLMComparison/
     clean_test_no_overlap_090_summary.json
     medbench_task_composition_results.csv
 
+  configs/
+    data_file_list.json
+    lora_medbench_r8_config.json
+    lora_medical_case_r16_config.json
+
   docs/
     data_sources.md
     data_availability_note.md
@@ -134,33 +141,44 @@ TCMLLMComparison/
 
 ## Files included in this repository
 
-This repository provides non-identifying processed outputs and reproducibility materials, including:
+This repository provides reproducibility materials and processed non-identifying outputs, including:
 
-* Evaluation scripts
-* Task-file list
+* Training and inference scripts
+* Structured medical-case evaluation script
+* Task-file list and configuration files
 * Main result tables
 * Leakage-audit summary statistics
 * Bootstrap confidence intervals
 * MedBench task-composition results
-* Documentation of data sources and evaluation settings
+* Documentation of data sources and data availability
 
-## Files not included in this repository
+## Data archives
 
-This repository does **not** redistribute the complete raw medical-case text or full model-output files, including:
+Some task-mixture archive files may be included for reproducibility. These archives are derived from publicly released resources associated with the SmartSage-ZYLLM-32B / 智医灵枢 project.
 
-* `medical_case.json`
-* `train.jsonl`
-* `val.jsonl`
-* `test.jsonl`
-* `test_clean_no_overlap_090.jsonl`
-* full raw model prediction files
-* files containing clinical case previews or full case text
+The original data source is:
 
-The reason is that the source data are released by a third-party project, and the medical-case text may contain clinical case descriptions. To avoid inappropriate redistribution of third-party clinical text, this repository only provides processed non-identifying summaries and evaluation results.
+https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B
+
+Users should check and follow the license and usage terms of the original SmartSage-ZYLLM-32B resources before using, redistributing, or modifying any raw or derived data files.
+
+## Files not redistributed as primary reproducibility outputs
+
+This repository does not treat full raw medical-case text or full model-output files as the primary reproducibility outputs. Files such as the complete `medical_case.json`, train/test JSONL splits, and full raw model prediction files may contain clinical case descriptions or third-party source text.
+
+For transparent and safer reproducibility, the repository provides:
+
+* non-identifying result tables
+* leakage-audit summary statistics
+* bootstrap confidence intervals
+* scripts for reproducing evaluation
+* configuration files listing the task data used
+
+Researchers who wish to reproduce the full pipeline should obtain the original JSON resources from the public SmartSage-ZYLLM-32B project and then run the scripts provided here.
 
 ## Reproducing the medical-case evaluation
 
-After obtaining the original JSON resources from the public SmartSage-ZYLLM-32B project, the structured medical-case evaluation can be reproduced using:
+After obtaining the original JSON resources from the SmartSage-ZYLLM-32B project, the structured medical-case evaluation can be reproduced using:
 
 ```bash
 python scripts/infer_eval_medical_case_multifield.py \
@@ -185,13 +203,34 @@ python scripts/infer_eval_medical_case_multifield.py \
   --max_new_tokens 768
 ```
 
-## Reproducing bootstrap confidence intervals
+## Reproducing MedBench JSONL inference
 
-Bootstrap confidence intervals were computed from the per-sample binary metrics in the structured evaluation result files. The processed confidence-interval table is provided in:
+MedBench prediction files can be generated using:
 
-```text
-results/bootstrap_95ci_main_metrics.csv
+```bash
+python scripts/infer_medbench_jsonl.py \
+  --base_model /path/to/Qwen3-8B-Instruct \
+  --adapter_path /path/to/lora_adapter \
+  --input_dir /path/to/MedBench_LLM \
+  --output_dir outputs/medbench_predictions \
+  --max_input_tokens 4096 \
+  --max_new_tokens 768
 ```
+
+For base-model inference, omit the `--adapter_path` argument if the script is configured for base-only inference.
+
+## Reproducing LoRA training
+
+The task-composition LoRA models can be trained using:
+
+```bash
+python scripts/train_qwen3_lora_ablation.py \
+  --base_model /path/to/Qwen3-8B-Instruct \
+  --data_dir /path/to/task_json_files \
+  --output_dir outputs/ablation_lora/model_output
+```
+
+Please check the script arguments and configuration files before running, because local paths, GPU settings, and data locations may differ across environments.
 
 ## Environment
 
@@ -205,18 +244,7 @@ PEFT 0.19.1
 GPU: NVIDIA A800 80GB PCIe
 ```
 
-A minimal `requirements.txt` can include:
-
-```text
-torch
-transformers
-peft
-tqdm
-numpy
-pandas
-```
-
-Version locking is recommended when reproducing the full pipeline.
+The minimal requirements are listed in `requirements.txt`.
 
 ## Data availability statement
 
@@ -224,9 +252,9 @@ The task datasets analysed in this study were derived from publicly released JSO
 
 https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B
 
-This repository provides the code, task-file list, preprocessing and evaluation scripts, leakage-audit summaries, processed non-identifying result tables, bootstrap confidence-interval results, and MedBench task-composition result files supporting the findings of the manuscript.
+This repository provides code, task-file lists, configuration files, preprocessing and evaluation scripts, leakage-audit summaries, processed non-identifying result tables, bootstrap confidence-interval results, and MedBench task-composition result files supporting the findings of the manuscript.
 
-Because the original resources are released by a third-party project and the medical-case file may contain clinical case descriptions, the complete raw medical-case text is not redistributed in this repository. Researchers who wish to reproduce the full pipeline should obtain the original JSON resources from the public SmartSage-ZYLLM-32B project and then run the scripts provided here.
+Because the original resources are released by a third-party project and the medical-case file may contain clinical case descriptions, researchers who wish to reproduce the full pipeline should obtain the original JSON resources from the public SmartSage-ZYLLM-32B project and then run the scripts provided in this repository.
 
 ## Clinical disclaimer
 
@@ -244,7 +272,7 @@ The formal citation will be updated after publication.
 
 ## License
 
-Please check the license and usage terms of the original SmartSage-ZYLLM-32B / 智医灵枢 resources before using or redistributing any derived data. This repository only distributes code and non-identifying processed evaluation summaries generated for the manuscript.
+Please check the license and usage terms of the original SmartSage-ZYLLM-32B / 智医灵枢 resources before using or redistributing any raw or derived data files. This repository mainly provides code, configuration files, and processed non-identifying evaluation summaries generated for the manuscript.
 
 A separate license file may be added for the code in this repository.
 
