@@ -1,0 +1,11 @@
+{
+  "train_n": 38432,
+  "original_test_n": 4804,
+  "clean_test_n": 3186,
+  "removed_n": 1618,
+  "exact_duplicate_removed": 387,
+  "near_duplicate_removed": 1231,
+  "threshold": 0.9,
+  "clean_test_rate": 0.6631973355537052,
+  "removed_rate": 0.33680266444629475
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "model_setting": "Base_Qwen3_clean3186",
+    "n": 3186,
+    "syndrome_exact": 0.34243565599497805,
+    "syndrome_contains": 0.36095417451349654,
+    "diagnosis_exact": 0.0,
+    "diagnosis_contains": 0.6616446955430006,
+    "treatment_exact": 0.0,
+    "treatment_contains": 0.002197112366603892,
+    "recommendation_hit": 0.08317639673571876,
+    "recommendation_precision": 0.0022986531524795996,
+    "recommendation_f1": 0.003969469267743296,
+    "full_output_exact": 0.0
+  },
+  {
+    "model_setting": "LoRA_r16_clean3186",
+    "n": 3186,
+    "syndrome_exact": 0.7234777150031387,
+    "syndrome_contains": 0.7234777150031387,
+    "diagnosis_exact": 0.6431261770244822,
+    "diagnosis_contains": 0.6698053986189579,
+    "treatment_exact": 0.7190834902699309,
+    "treatment_contains": 0.7190834902699309,
+    "recommendation_hit": 0.7868801004394225,
+    "recommendation_precision": 0.7459091860221804,
+    "recommendation_f1": 0.7458968213205501,
+    "full_output_exact": 0.5040803515379787
+  },
+  {
+    "model_setting": "LoRA_r16_original4804",
+    "n": 4804,
+    "syndrome_exact": 0.5174854288093256,
+    "syndrome_contains": 0.5174854288093256,
+    "diagnosis_exact": 0.6534138218151541,
+    "diagnosis_contains": 0.6661115736885929,
+    "treatment_exact": 0.5183180682764363,
+    "treatment_contains": 0.5183180682764363,
+    "recommendation_hit": 0.5776436303080766,
+    "recommendation_precision": 0.5387524285317792,
+    "recommendation_f1": 0.5387524285317792,
+    "full_output_exact": 0.4419233971690258
+  },
+  {
+    "model_setting": "Improvement_LoRA_clean_minus_Base_clean",
+    "n": 3186,
+    "syndrome_exact": 0.3810420590081607,
+    "syndrome_contains": 0.3625235404896422,
+    "diagnosis_exact": 0.6431261770244822,
+    "diagnosis_contains": 0.008160703075957287,
+    "treatment_exact": 0.7190834902699309,
+    "treatment_contains": 0.716886377903327,
+    "recommendation_hit": 0.7037037037037037,
+    "recommendation_precision": 0.7436105328697008,
+    "recommendation_f1": 0.7419273520528068,
+    "full_output_exact": 0.5040803515379787
+  }
+]

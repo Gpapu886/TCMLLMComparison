@@ -1,0 +1,4 @@
+model_setting,overall,MKQA,MLG,CMR,MLU,MSE
+Qwen3-8B-Instruct base,53.7,62.2,69.8,57.0,59.4,20.0
+Four-category LoRA,40.6,43.0,56.9,38.8,42.8,21.7
+Seven-category LoRA,39.7,44.6,56.8,37.7,42.8,16.7
