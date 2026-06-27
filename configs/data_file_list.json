@@ -1,0 +1,21 @@
+{
+  "source_project": "SmartSage-ZYLLM-32B / Zhiyi Lingshu",
+  "source_url": "https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B",
+  "four_category_files": [
+    "choice_herb_formula.json",
+    "entity_extraction.json",
+    "knowledge.json",
+    "recommend_formula.json"
+  ],
+  "seven_category_files": [
+    "choice_herb_formula.json",
+    "entity_extraction.json",
+    "knowledge.json",
+    "recommend_formula.json",
+    "admet.json",
+    "medical_case.json",
+    "recommend_disease.json"
+  ],
+  "medical_case_file": "medical_case.json",
+  "medbench_test_files": "38 jsonl files in MedBench_LLM"
+}

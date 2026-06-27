@@ -1,0 +1,19 @@
+{
+  "base_model": "Qwen3-8B-Instruct",
+  "task": "structured TCM medical-case generation",
+  "dataset_file": "medical_case.json",
+  "train_n": 38432,
+  "val_n": 4804,
+  "original_test_n": 4804,
+  "clean_test_n": 3186,
+  "lora_rank": 16,
+  "evaluation_fields": [
+    "syndrome",
+    "diagnosis",
+    "treatment",
+    "recommendation",
+    "full_output"
+  ],
+  "max_input_tokens": 4096,
+  "max_new_tokens": 768
+}
