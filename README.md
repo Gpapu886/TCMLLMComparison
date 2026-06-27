@@ -1,4 +1,4 @@
-````markdown
+
 # TCMLLMComparison
 
 This repository contains code, configuration notes, and processed evaluation results for the manuscript:
