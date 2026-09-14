@@ -1,280 +1,199 @@
+# TCM-LLM-Comparison
+### Leakage-Aware Evaluation & Conflict-Aware Retrieval for Structured TCM Medical Case Generation with LLMs
 
-# TCMLLMComparison
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![Base Model](https://img.shields.io/badge/Base%20Model-Qwen3--8B--Instruct-22a565)
+![Conference](https://img.shields.io/badge/ISAIMS-2026%20(ACM%20%2F%20EI)-success)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-This repository contains the code, configuration files, processed evaluation summaries, and result tables for the manuscript:
+A reproducible pipeline for **structured Traditional Chinese Medicine (TCM) medical-case generation** with large language models, covering (1) a **leakage-controlled evaluation** of LoRA fine-tuning and (2) **CARE-TCM**, a conflict-aware retrieval-and-evidence-gating RAG framework. All experiments are built on **Qwen3-8B-Instruct** over **48,040 real TCM cases**, with strict train/test de-duplication, hybrid sparse–dense retrieval, a programmatic (non-prompt) evidence router, and paired significance testing.
 
-**A benchmark and leakage-controlled evaluation of LoRA fine-tuning for traditional Chinese medicine language models**
 
-## Overview
 
-This study evaluates low-rank adaptation (LoRA) fine-tuning for traditional Chinese medicine (TCM) large language models from two complementary perspectives:
+## 1. Overview
 
-1. **Benchmark task-composition evaluation**  
-   We evaluated five open-source foundation models on MedBench and selected Qwen3-8B-Instruct as the base model for subsequent LoRA fine-tuning. Two task-composition settings were compared:
-   - A four-category prescription-related LoRA setting
-   - A seven-category heterogeneous LoRA setting
+Generating *structured* TCM records — syndrome differentiation (辨证), diagnosis (诊断), treatment principle (治法) and recommendation (推荐) — is easy to over-estimate in the lab for two reasons that this repository addresses:
 
-2. **Leakage-controlled medical-case evaluation**  
-   We evaluated a focused Qwen3-8B-Instruct + LoRA r16 model for structured TCM medical-case generation. Exact and near-duplicate train-test overlap was audited, and a leakage-filtered clean test set was constructed.
+1. **Data leakage inflates scores.** A leakage audit found that **>33%** of test cases were near-duplicates of training cases. We therefore build a four-stage cleaning pipeline and *leakage-filtered clean tests* before reporting any number.
+2. **A single fixed strategy is brittle.** Plain LoRA, single-retriever RAG and naive retrieval all behave inconsistently when retrieved evidence conflicts with the case syndrome. **CARE-TCM** groups evidence by TCM syndrome and routes each case through one of three frozen branches (`LoRA-only / BM25-RAG / CARE-RAG`).
 
-The goal of this repository is to provide scripts and processed non-identifying result files that support the numerical findings reported in the manuscript.
+> The evidence gate is a **programmatic router whose thresholds are frozen on the validation set** — it is not an LLM prompt, so it never learns from the test distribution.
 
-## Data sources
+**Main result.** On a strict 3,154-case test set, CARE-TCM raises diagnosis exact accuracy from **0.6465 → 0.6874 (+4.09 pp)**, significant under a paired McNemar test (**p = 6.75×10⁻⁹**).
 
-The JSON task files used in this study were derived from publicly released resources associated with the SmartSage-ZYLLM-32B / 智医灵枢 TCM LLM project:
 
-- Source project: https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B
 
-We did not construct a new clinical database from hospital records. Instead, we selected task-specific JSON files from the publicly released integrated resources and used them for controlled LoRA fine-tuning and evaluation.
+## 2. Key Contributions
 
-Users should check and follow the license and usage terms of the original SmartSage-ZYLLM-32B / 智医灵枢 resources before using, redistributing, or modifying any raw or derived data files.
+- **Leakage audit & controlled splits** — exact-match + 64-bit SimHash (BLAKE2b-tokenized, similarity ≥ 0.90) near-duplicate detection; a four-stage pipeline of field extraction → quality filtering → NFKC normalization → de-duplication.
+- **Systematic LoRA study** — Qwen3-8B-Instruct with LoRA rank r=16 across different task compositions, evaluated on five structured outputs over a 3,186-case leakage-filtered clean test.
+- **CARE-TCM framework** — BM25 sparse + BGE-M3 dense dual retrieval, Reciprocal Rank Fusion (RRF), syndrome-consistent evidence grouping, and a validation-frozen three-way gate.
+- **Rigorous evaluation** — per-field exact accuracy / hit-rate / F1, Bootstrap 95% confidence intervals, paired McNemar tests, and `input-only / answer-visible / counterfactual` audits that separately quantify retrieval gain and annotation-adoption risk.
 
-## Task-composition experiment
 
-The four-category setting used the following JSON files:
 
-- `choice_herb_formula.json`
-- `entity_extraction.json`
-- `knowledge.json`
-- `recommend_formula.json`
+## 3. Framework
 
-The seven-category setting used the same four files plus:
+mermaid
+flowchart TD
+    A["48,040 raw TCM cases"] --> B["Field extraction"]
+    B --> C["Quality filtering"]
+    C --> D["NFKC normalization"]
+    D --> E["De-duplication: exact match + 64-bit SimHash (sim >= 0.90)"]
+    E --> F["Leakage-controlled clean splits<br/>3,186 / 3,154 test cases"]
+    Q["Input medical case"] --> R1["BM25 sparse retrieval"]
+    Q --> R2["BGE-M3 dense retrieval"]
+    R1 --> RF["RRF hybrid fusion"]
+    R2 --> RF
+    RF --> G["Syndrome-consistent evidence grouping"]
+    F -.->|"thresholds frozen on validation"| GT["3-way evidence gate"]
+    G --> GT
+    GT -->|"LoRA-only"| M["Qwen3-8B-Instruct + LoRA r16"]
+    GT -->|"BM25-RAG"| M
+    GT -->|"CARE-RAG"| M
+    M --> O["Structured output<br/>syndrome / diagnosis / treatment / recommendation"]
 
-- `admet.json`
-- `medical_case.json`
-- `recommend_disease.json`
 
-The MedBench task-composition results were:
 
-| Model setting | Overall | MKQA | MLG | CMR | MLU | MSE |
-|---|---:|---:|---:|---:|---:|---:|
-| Qwen3-8B-Instruct base | 53.7 | 62.2 | 69.8 | 57.0 | 59.4 | 20.0 |
-| Four-category LoRA | 40.6 | 43.0 | 56.9 | 38.8 | 42.8 | 21.7 |
-| Seven-category LoRA | 39.7 | 44.6 | 56.8 | 37.7 | 42.8 | 16.7 |
 
-These results suggest that broader heterogeneous task mixing did not improve MedBench performance under the tested LoRA configuration.
+## 4. Datasets
 
-## Leakage-controlled medical-case experiment
+| Item | Detail |
+|---|---|
+| Raw corpus | 48,040 TCM medical cases (public TCM task data + partner-hospital cases) |
+| Preprocessing | Field extraction → quality filtering → NFKC → exact + SimHash de-duplication |
+| Leakage found | >33% of raw test cases near-duplicated training cases |
+| Clean test (LoRA study) | 3,186 leakage-filtered cases |
+| Strict test (CARE-TCM) | 3,154 cases |
+| Structured fields | syndrome differentiation, diagnosis, treatment principle, recommendation, full-output |
 
-The leakage-controlled medical-case experiment used the integrated `medical_case.json` file from the same public resource.
+> **Data governance:** the raw records contain clinical content and are **not redistributed** in this repository. `data/` ships only an anonymized schema example and the full preprocessing / audit code so the pipeline can be reproduced on your own TCM corpus.
 
-The dataset was split into:
 
-| Split | Number of cases |
-|---|---:|
-| Training set | 38,432 |
-| Validation set | 4,804 |
-| Original test set | 4,804 |
 
-Train-test leakage auditing identified exact and near-duplicate overlap between the training and original test sets.
+## 5. Repository Structure
 
-| Item | Value |
-|---|---:|
-| Original test cases | 4,804 |
-| Exact duplicate cases removed | 387 |
-| Additional near-duplicate cases removed | 1,231 |
-| Total removed cases | 1,618 |
-| Near-duplicate threshold | 0.90 |
-| Clean test cases retained | 3,186 |
-| Removed rate | 33.68% |
-| Clean-test retention rate | 66.32% |
-
-## Main structured medical-case results
-
-| Setting | n | Syndrome exact | Diagnosis exact | Treatment exact | Recommendation hit | Full-output exact |
-|---|---:|---:|---:|---:|---:|---:|
-| Base Qwen3 clean test | 3,186 | 0.3424 | 0.0000 | 0.0000 | 0.0832 | 0.0000 |
-| LoRA r16 clean test | 3,186 | 0.7235 | 0.6431 | 0.7191 | 0.7869 | 0.5041 |
-| LoRA r16 original test | 4,804 | 0.5175 | 0.6534 | 0.5183 | 0.5776 | 0.4419 |
-| LoRA r16 clean minus base clean | 3,186 | +0.3810 | +0.6431 | +0.7191 | +0.7037 | +0.5041 |
-
-## Bootstrap 95% confidence intervals
-
-Bootstrap confidence intervals were calculated using 1,000 non-parametric bootstrap resamples.
-
-| Setting | Metric | Mean | 95% CI low | 95% CI high |
-|---|---|---:|---:|---:|
-| Base clean test | Syndrome exact | 0.3424 | 0.3258 | 0.3597 |
-| Base clean test | Diagnosis exact | 0.0000 | 0.0000 | 0.0000 |
-| Base clean test | Treatment exact | 0.0000 | 0.0000 | 0.0000 |
-| Base clean test | Recommendation hit | 0.0832 | 0.0744 | 0.0926 |
-| Base clean test | Full-output exact | 0.0000 | 0.0000 | 0.0000 |
-| LoRA r16 clean test | Syndrome exact | 0.7235 | 0.7094 | 0.7385 |
-| LoRA r16 clean test | Diagnosis exact | 0.6431 | 0.6262 | 0.6594 |
-| LoRA r16 clean test | Treatment exact | 0.7191 | 0.7028 | 0.7351 |
-| LoRA r16 clean test | Recommendation hit | 0.7869 | 0.7718 | 0.8004 |
-| LoRA r16 clean test | Full-output exact | 0.5041 | 0.4871 | 0.5207 |
-| LoRA r16 original test | Syndrome exact | 0.5175 | 0.5035 | 0.5331 |
-| LoRA r16 original test | Diagnosis exact | 0.6534 | 0.6399 | 0.6667 |
-| LoRA r16 original test | Treatment exact | 0.5183 | 0.5037 | 0.5327 |
-| LoRA r16 original test | Recommendation hit | 0.5776 | 0.5635 | 0.5924 |
-| LoRA r16 original test | Full-output exact | 0.4419 | 0.4280 | 0.4557 |
-
-## Repository structure
-
-```text
+text
 TCMLLMComparison/
-  README.md
-  requirements.txt
+├── README.md
+├── requirements.txt
+├── configs/
+│   ├── lora_r16.yaml            # LoRA rank/alpha/lr/dropout config
+│   └── retrieval.yaml           # BM25 / BGE-M3 / RRF parameters
+├── data/
+│   ├── raw/                     # 48,040 raw cases (not redistributed)
+│   ├── processed/               # cleaned splits & clean tests
+│   └── schema_example.json      # one anonymized case
+├── src/
+│   ├── preprocess/              # extraction, filtering, NFKC, de-duplication
+│   ├── leakage_audit/           # exact + SimHash near-duplicate detection
+│   ├── finetune/                # LoRA/PEFT training on Qwen3-8B-Instruct
+│   ├── retrieval/              # BM25, BGE-M3 dense retrieval, RRF fusion
+│   ├── care_gate/              # syndrome grouping + frozen 3-way router
+│   └── evaluate/               # exact/F1, Bootstrap CI, McNemar
+├── scripts/
+│   ├── run_preprocess.py
+│   ├── run_leakage_audit.py
+│   ├── run_lora.py
+│   ├── run_retrieval_gate.py
+│   └── run_evaluate.py
+└── results/                     # result tables and figures
 
-  scripts/
-    infer_eval_medical_case_multifield.py
-    infer_medbench_jsonl.py
-    train_qwen3_lora_ablation.py
 
-  results/
-    final_main_results_table.csv
-    final_main_results_table.json
-    bootstrap_95ci_main_metrics.csv
-    clean_test_no_overlap_090_summary.json
-    medbench_task_composition_results.csv
 
-  configs/
-    data_file_list.json
-    lora_medbench_r8_config.json
-    lora_medical_case_r16_config.json
 
-  docs/
-    data_sources.md
-    data_availability_note.md
-````
+## 6. Quick Start
 
-## Files included in this repository
+bash
+# 0. environment
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+# download Qwen3-8B-Instruct and BGE-M3 from Hugging Face first
 
-This repository provides reproducibility materials and processed non-identifying outputs, including:
+# 1. preprocess and build leakage-controlled splits
+python scripts/run_preprocess.py --config configs/retrieval.yaml
 
-* Training and inference scripts
-* Structured medical-case evaluation script
-* Task-file list and configuration files
-* Main result tables
-* Leakage-audit summary statistics
-* Bootstrap confidence intervals
-* MedBench task-composition results
-* Documentation of data sources and data availability
+# 2. train/test leakage audit (exact + SimHash)
+python scripts/run_leakage_audit.py
 
-## Data archives
+# 3. LoRA r16 fine-tuning on Qwen3-8B-Instruct
+python scripts/run_lora.py --config configs/lora_r16.yaml
 
-Some task-mixture archive files may be included for reproducibility. These archives are derived from publicly released resources associated with the SmartSage-ZYLLM-32B / 智医灵枢 project.
+# 4. hybrid retrieval + CARE evidence gate, then evaluate
+python scripts/run_retrieval_gate.py --config configs/retrieval.yaml
+python scripts/run_evaluate.py
 
-The original data source is:
 
-https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B
+Core dependencies: torch, transformers, peft, datasets, accelerate, rank-bm25, FlagEmbedding (BGE-M3), scikit-learn, scipy, pandas, numpy, tqdm.
 
-Users should check and follow the license and usage terms of the original SmartSage-ZYLLM-32B resources before using, redistributing, or modifying any raw or derived data files.
 
-## Files not redistributed as primary reproducibility outputs
 
-This repository does not treat full raw medical-case text or full model-output files as the primary reproducibility outputs. Files such as the complete `medical_case.json`, train/test JSONL splits, and full raw model prediction files may contain clinical case descriptions or third-party source text.
+## 7. Main Results
 
-For transparent and safer reproducibility, the repository provides:
+### 7.1 LoRA r16 on the 3,186-case leakage-filtered clean test
 
-* non-identifying result tables
-* leakage-audit summary statistics
-* bootstrap confidence intervals
-* scripts for reproducing evaluation
-* configuration files listing the task data used
+| Structured output | Metric | Score |
+|---|---|---:|
+| Syndrome differentiation (辨证) | Exact accuracy | **72.35%** |
+| Diagnosis (诊断) | Exact accuracy | **64.31%** |
+| Treatment principle (治法) | Exact accuracy | **71.91%** |
+| Recommendation (推荐) | Hit rate | **78.69%** |
+| Full structured output | Exact accuracy | **50.41%** |
 
-Researchers who wish to reproduce the full pipeline should obtain the original JSON resources from the public SmartSage-ZYLLM-32B project and then run the scripts provided here.
+*Finding:* mixing heterogeneous tasks does not necessarily improve the medical benchmark, whereas a **case-focused LoRA r16** adapter clearly improves structured TCM output — but only after leakage is removed.
 
-## Reproducing the medical-case evaluation
+### 7.2 CARE-TCM on the 3,154-case strict test (diagnosis)
 
-After obtaining the original JSON resources from the SmartSage-ZYLLM-32B project, the structured medical-case evaluation can be reproduced using:
+| Method | Diagnosis exact accuracy |
+|---|---:|
+| LoRA-only baseline | 0.6465 |
+| **CARE-TCM (frozen gated routing)** | **0.6874** |
+| Absolute gain | **+4.09 pp** |
+| Paired significance | McNemar **p = 6.75×10⁻⁹** |
 
-```bash
-python scripts/infer_eval_medical_case_multifield.py \
-  --base_model /path/to/Qwen3-8B-Instruct \
-  --adapter_path /path/to/lora_adapter \
-  --test_file /path/to/test_clean_no_overlap_090.jsonl \
-  --raw_eval_file outputs/eval/model_raw_eval.json \
-  --multifield_file outputs/eval/model_multifield_eval.json \
-  --max_input_tokens 4096 \
-  --max_new_tokens 768
-```
 
-For base-model evaluation, omit the `--adapter_path` argument:
 
-```bash
-python scripts/infer_eval_medical_case_multifield.py \
-  --base_model /path/to/Qwen3-8B-Instruct \
-  --test_file /path/to/test_clean_no_overlap_090.jsonl \
-  --raw_eval_file outputs/eval/base_raw_eval.json \
-  --multifield_file outputs/eval/base_multifield_eval.json \
-  --max_input_tokens 4096 \
-  --max_new_tokens 768
-```
+## 8. Evaluation & Auditing Protocol
 
-## Reproducing MedBench JSONL inference
+- **Metrics:** per-field exact accuracy, hit rate and F1, plus full-output exact match.
+- **Uncertainty:** Bootstrap 95% confidence intervals.
+- **Significance:** paired McNemar test on the *same* test cases (two related proportions).
+- **Three audit protocols:**
+  - *input-only* — model never sees retrieved evidence;
+  - *answer-visible* — evidence shown, measures adoption;
+  - *counterfactual* — evidence perturbed to test whether gains come from retrieval rather than label leakage.
 
-MedBench prediction files can be generated using:
 
-```bash
-python scripts/infer_medbench_jsonl.py \
-  --base_model /path/to/Qwen3-8B-Instruct \
-  --adapter_path /path/to/lora_adapter \
-  --input_dir /path/to/MedBench_LLM \
-  --output_dir outputs/medbench_predictions \
-  --max_input_tokens 4096 \
-  --max_new_tokens 768
-```
 
-For base-model inference, omit the `--adapter_path` argument if the script is configured for base-only inference.
+## 9. Papers & Citation
 
-## Reproducing LoRA training
+Two papers from this project were accepted by **ISAIMS 2026** (The 7th International Symposium on Artificial Intelligence in Medical Sciences), **ACM publication, EI-indexed**.
 
-The task-composition LoRA models can be trained using:
+bibtex
+@inproceedings{hou2026leakage,
+  title     = {Leakage-Aware Evaluation of {LoRA} Fine-Tuning for Structured
+               Traditional Chinese Medicine Medical Case Generation},
+  author    = {Hou, Chao and Wang, Yang and Zhao, Duo and Tian, Bin},
+  booktitle = {Proceedings of ISAIMS 2026 (ACM, EI)},
+  year      = {2026}
+}
 
-```bash
-python scripts/train_qwen3_lora_ablation.py \
-  --base_model /path/to/Qwen3-8B-Instruct \
-  --data_dir /path/to/task_json_files \
-  --output_dir outputs/ablation_lora/model_output
-```
+@inproceedings{hou2026care,
+  title     = {{CARE-TCM}: Conflict-Aware Retrieval and Evidence Gating for
+               Structured Traditional Chinese Medicine Medical Case Generation},
+  author    = {Hou, Chao and Wang, Yang and Zhao, Duo and Tian, Bin},
+  booktitle = {Proceedings of ISAIMS 2026 (ACM, EI)},
+  year      = {2026}
+}
 
-Please check the script arguments and configuration files before running, because local paths, GPU settings, and data locations may differ across environments.
 
-## Environment
+## 10. Acknowledgement
 
-The main experiments were conducted using:
+This work was supported by the **Medical–Engineering Interdisciplinary Program of Shanghai Seventh People's Hospital** (Grant No. **C80ZK230026**) and the research group at Shanghai Polytechnic University.
 
-```text
-Python 3.10
-PyTorch 2.6.0 + CUDA 12.4
-Transformers 4.51.3
-PEFT 0.19.1
-GPU: NVIDIA A800 80GB PCIe
-```
+## 11. License & Contact
 
-The minimal requirements are listed in `requirements.txt`.
-
-## Data availability statement
-
-The task datasets analysed in this study were derived from publicly released JSON resources associated with the SmartSage-ZYLLM-32B / 智医灵枢 TCM LLM project:
-
-https://ai.gitee.com/ljt365fir/SmartSage-ZYLLM-32B
-
-This repository provides code, task-file lists, configuration files, preprocessing and evaluation scripts, leakage-audit summaries, processed non-identifying result tables, bootstrap confidence-interval results, and MedBench task-composition result files supporting the findings of the manuscript.
-
-Because the original resources are released by a third-party project and the medical-case file may contain clinical case descriptions, researchers who wish to reproduce the full pipeline should obtain the original JSON resources from the public SmartSage-ZYLLM-32B project and then run the scripts provided in this repository.
-
-## Clinical disclaimer
-
-All model outputs and evaluation results in this repository are for computational research only. They should not be interpreted as clinical prescriptions, medical advice, diagnostic recommendations, or treatment guidance.
-
-## Citation
-
-If this work is useful for your research, please cite the associated manuscript:
-
-```text
-Hou C, Wang Y, Zhao D, Zhang J. A benchmark and leakage-controlled evaluation of LoRA fine-tuning for traditional Chinese medicine language models.
-```
-
-The formal citation will be updated after publication.
-
-## License
-
-Please check the license and usage terms of the original SmartSage-ZYLLM-32B / 智医灵枢 resources before using or redistributing any raw or derived data files. This repository mainly provides code, configuration files, and processed non-identifying evaluation summaries generated for the manuscript.
-
-A separate license file may be added for the code in this repository.
-
-```
-```
+- Code released under the **MIT License**; clinical raw data are excluded for compliance.
+- **Yang Wang** — replace-with-your-email@example.com · GitHub: [@Gpapu886](https://github.com/Gpapu886)
+- Advisor: **Chao Hou**, houchao@sspu.edu.cn
