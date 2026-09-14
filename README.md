@@ -192,8 +192,3 @@ bibtex
 
 This work was supported by the **Medical–Engineering Interdisciplinary Program of Shanghai Seventh People's Hospital** (Grant No. **C80ZK230026**) and the research group at Shanghai Polytechnic University.
 
-## 11. License & Contact
-
-- Code released under the **MIT License**; clinical raw data are excluded for compliance.
-- **Yang Wang** — replace-with-your-email@example.com · GitHub: [@Gpapu886](https://github.com/Gpapu886)
-- Advisor: **Chao Hou**, houchao@sspu.edu.cn
